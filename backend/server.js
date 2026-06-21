@@ -45,7 +45,9 @@ app.get("/auth/hubspot/callback", async (req, res) => {
   const data = await response.json();
   accessToken = data.access_token;
 
-  res.send("HubSpot Connected ✅ You can go back to React app");
+  return res.redirect(
+      `http://localhost:5173/?status=success`
+    );
 });
 
 

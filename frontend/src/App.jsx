@@ -2,6 +2,8 @@ import { useState } from "react";
 import axios from "axios";
 
 export default function App() {
+  const urlSearchParams = new URLSearchParams(window.location.search);
+  const status = urlSearchParams.get("status");
   const [message, setMessage] = useState("");
   const [response, setResponse] = useState(null);
 
@@ -25,6 +27,9 @@ export default function App() {
       <button onClick={sendMessage}>Send</button>
 
       <pre>{JSON.stringify(response, null, 2)}</pre>
+      {status === "success" && (
+        <div style={{ color: "green" }}>HubSpot connected successfully!</div>
+      )}
     <button
       onClick={() => {
         window.location.href = "http://localhost:3001/auth/hubspot";
