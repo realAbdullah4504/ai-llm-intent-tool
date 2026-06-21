@@ -25,6 +25,13 @@ export default function App() {
       <button onClick={sendMessage}>Send</button>
 
       <pre>{JSON.stringify(response, null, 2)}</pre>
+    <button
+      onClick={() => {
+        window.location.href = "http://localhost:3001/auth/hubspot";
+      }}
+    >
+      Connect HubSpot
+    </button>
     </div>
   );
 }
