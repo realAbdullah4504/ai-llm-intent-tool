@@ -37,6 +37,23 @@ export default function App() {
     >
       Connect HubSpot
     </button>
+    <button
+      onClick={() => {
+        window.location.href = "http://localhost:3001/auth/pipedrive";
+      }}
+    >
+      Connect Pipedrive
+    </button>
+    <button onClick={() => {
+        window.location.href = "http://localhost:3001/auth/salesforce";
+      }}>
+      connect sales force
+    </button>
+    <button onClick={() => {
+        window.location.href = "http://localhost:3001/auth/close";
+      }}>
+      connect close
+    </button>
     </div>
   );
 }

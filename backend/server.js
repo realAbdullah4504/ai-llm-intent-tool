@@ -12,6 +12,272 @@ app.use(express.json());
 let accessToken = null;
 
 
+import crypto from "crypto";
+
+function base64url(buffer) {
+  return buffer.toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+const code_verifier = base64url(crypto.randomBytes(32));
+
+const code_challenge = base64url(
+  crypto.createHash("sha256").update(code_verifier).digest()
+);
+
+app.get('/auth/salesforce', (req, res) => {
+ const authUrl =
+  `https://login.salesforce.com/services/oauth2/authorize` +
+  `?response_type=code` +
+  `&client_id=${process.env.SF_CLIENT_ID}` +
+  `&redirect_uri=${encodeURIComponent(process.env.SF_REDIRECT_URI)}` +
+  `&code_challenge=${code_challenge}` +
+  `&code_challenge_method=S256`;
+
+  res.redirect(authUrl);
+});
+
+
+
+
+app.get('/auth/salesforce/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+
+    if (!code) {
+      return res.status(400).send('Missing authorization code');
+    }
+
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      client_id: process.env.SF_CLIENT_ID,
+      client_secret: process.env.SF_CLIENT_SECRET,
+      redirect_uri: process.env.SF_REDIRECT_URI,
+    });
+
+    const tokenResponse = await fetch(
+      'https://login.salesforce.com/services/oauth2/token',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      }
+    );
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok) {
+      throw new Error(JSON.stringify(tokenData));
+    }
+
+    const { access_token, refresh_token, instance_url } = tokenData;
+
+    console.log('Access Token:', access_token);
+
+    // Example API call (Salesforce uses instance_url!)
+    const userResponse = await fetch(
+      `${instance_url}/services/oauth2/userinfo`,
+      {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+      }
+    );
+
+    const userData = await userResponse.json();
+
+    res.json({
+      success: true,
+      token: {
+        access_token,
+        refresh_token,
+        instance_url,
+      },
+      user: userData,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+
+
+app.get("/auth/close", (req, res) => {
+  const url =
+    `https://app.close.com/oauth2/authorize/` +
+    `?client_id=${process.env.CLOSE_CLIENT_ID}` +
+    `&response_type=code`;
+
+  return res.redirect(url);
+});
+
+
+
+let closeAccessToken = null;
+
+app.get("/auth/close/callback", async (req, res) => {
+  const { code } = req.query;
+
+  const response = await fetch(
+    "https://api.close.com/oauth2/token/",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: process.env.CLOSE_CLIENT_ID,
+        client_secret: process.env.CLOSE_CLIENT_SECRET,
+        code,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    return res.status(400).json({
+      error: "Failed to exchange token",
+      details: data,
+    });
+  }
+
+  closeAccessToken = data.access_token;
+
+  return res.redirect(
+    `http://localhost:5173/?status=close_success`
+  );
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const {
+  PIPEDRIVE_CLIENT_ID,
+  PIPEDRIVE_CLIENT_SECRET,
+  PIPEDRIVE_REDIRECT_URI,
+} = process.env;
+
+/**
+ * Step 1: Redirect user to Pipedrive OAuth
+ */
+app.get('/auth/pipedrive', (req, res) => {
+  const state = 'random_state_value';
+
+  const authUrl =
+    `https://oauth.pipedrive.com/oauth/authorize` +
+    `?client_id=${PIPEDRIVE_CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(PIPEDRIVE_REDIRECT_URI)}` +
+    `&response_type=code` +
+    `&state=${state}`;
+
+  res.redirect(authUrl);
+});
+
+/**
+ * Step 2: OAuth Callback
+ */
+app.get('/auth/pipedrive/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+
+    if (!code) {
+      return res.status(400).send('Missing authorization code');
+    }
+
+    const basicAuth = Buffer.from(
+      `${PIPEDRIVE_CLIENT_ID}:${PIPEDRIVE_CLIENT_SECRET}`
+    ).toString('base64');
+
+    const tokenResponse = await fetch(
+      'https://oauth.pipedrive.com/oauth/token',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${basicAuth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: PIPEDRIVE_REDIRECT_URI,
+        }),
+      }
+    );
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      throw new Error(errorText);
+    }
+
+    const tokenData = await tokenResponse.json();
+
+    const {
+      access_token,
+      refresh_token,
+      expires_in,
+    } = tokenData;
+
+    console.log('Access Token:', access_token);
+
+    // Get current user
+    const userResponse = await fetch(
+      'https://api.pipedrive.com/v1/users/me',
+      {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+      }
+    );
+
+    const userData = await userResponse.json();
+
+    res.json({
+      success: true,
+      token_info: {
+        access_token,
+        refresh_token,
+        expires_in,
+      },
+      user: userData,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+
+
+
+
 app.get("/auth/hubspot", (req, res) => {
   const url =
     `https://app.hubspot.com/oauth/authorize` +
