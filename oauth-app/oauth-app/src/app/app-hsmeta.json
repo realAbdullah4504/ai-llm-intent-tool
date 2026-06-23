@@ -8,12 +8,20 @@
     "auth": {
       "type": "oauth",
       "redirectUrls": [
-        "http://localhost:3001/auth/hubspot/callback"
+        "https://hissing-nexus-crm-flow.base44.app/functions/hubspotAuthCallback"
       ],
       "requiredScopes": [
         "oauth",
         "crm.objects.contacts.read",
-        "crm.objects.contacts.write"
+        "crm.objects.contacts.write",
+        "crm.objects.companies.read",
+        "crm.objects.companies.write",
+        "crm.objects.deals.read",
+        "crm.objects.deals.write",
+        "crm.objects.owners.read",
+        "crm.schemas.contacts.read",
+        "crm.schemas.companies.read",
+        "crm.schemas.deals.read"
       ],
       "optionalScopes": [],
       "conditionallyRequiredScopes": []
